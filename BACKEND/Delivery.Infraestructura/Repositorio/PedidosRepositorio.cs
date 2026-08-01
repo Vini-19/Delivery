@@ -4,197 +4,306 @@ using Delivery.Shared.Models;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Delivery.Infraestructura.Repositorio
 {
     public class PedidosRepositorio : IPedidosRepositorio
     {
-        private readonly IMongoCollection<Pedidos> _pedidosCollection;
+        private readonly IMongoCollection<Pedidos>
+            _pedidosCollection;
 
-        public PedidosRepositorio(IOptions<MongoDb> options)
+        public PedidosRepositorio(
+            IOptions<MongoDb> options)
         {
             var config = options.Value;
-            var cliente = new MongoClient(config.ConnectionString);
-            var database = cliente.GetDatabase(config.DatabaseName);
 
-            _pedidosCollection = database.GetCollection<Pedidos>(config.ResultadosCollection);
-        }
+            var cliente = new MongoClient(
+                config.ConnectionString
+            );
 
-        public static FilterDefinition<Pedidos> FiltroPedidosDelivery()
-        {
-            return Builders<Pedidos>
-                .Filter
-                .And(
-                Builders<Pedidos>.Filter
-                .Eq(
-                    x => x.Estado, "Listo"),
+            var database = cliente.GetDatabase(
+                config.DatabaseName
+            );
 
-                Builders<Pedidos>.Filter
-                .Eq(
-                    x => x.EstadoDelivery, "Pendiente")
+            _pedidosCollection =
+                database.GetCollection<Pedidos>(
+                    config.PedidosCollection
                 );
         }
 
-
-
-        public async Task<bool> CambiarEstadoCocinaAsync(string pedidoId, string nuevoEstado)
+        private static FilterDefinition<Pedidos>
+            FiltroPedidosDelivery()
         {
-            if(string.IsNullOrWhiteSpace(pedidoId) || string.IsNullOrWhiteSpace(nuevoEstado))
-            {
-                return false;
-            }
-            if(!ObjectId.TryParse(pedidoId, out _))
-            {
-                return false;
-            }
-            nuevoEstado = nuevoEstado.Trim();
+            return Builders<Pedidos>.Filter.And(
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.Estado,
+                    "Listo"
+                ),
 
-            var filtro = Builders<Pedidos>
-                .Filter
-                .Eq(x => x.Id, pedidoId);
-
-            var actualizacion = Builders<Pedidos>
-                .Update
-                .Set(x => x.Estado, nuevoEstado);
-
-            var resultado = await _pedidosCollection.UpdateOneAsync(filtro, actualizacion);
-
-            return resultado.ModifiedCount > 0;
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.EstadoDelivery,
+                    "Pendiente"
+                )
+            );
         }
 
-        public async Task<bool> CambiarEstadoDeliveryAsync(string pedidoId, string nuevoEstado)
+
+        private static FilterDefinition<Pedidos>
+            FiltroPedidosPedidoCocina()
         {
-            if (string.IsNullOrWhiteSpace(pedidoId) || string.IsNullOrWhiteSpace(nuevoEstado))
+            return Builders<Pedidos>.Filter.And(
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.Estado,
+                    "Pendiente"
+                ),
+
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.EstadoDelivery,
+                    "Pendiente"
+                )
+            );
+        }
+
+        public async Task GuardarPedidoAsync(
+            Pedidos pedido)
+        {
+            if (pedido == null)
             {
-                return false;
+                throw new ArgumentNullException(
+                    nameof(pedido)
+                );
             }
+
+            if (!ObjectId.TryParse(pedido.Id, out _))
+            {
+                throw new InvalidOperationException(
+                    $"El identificador '{pedido.Id}' no es un ObjectId válido."
+                );
+            }
+
+            var filtro = Builders<Pedidos>.Filter.Eq(
+                x => x.Id,
+                pedido.Id
+            );
+
+            await _pedidosCollection.ReplaceOneAsync(
+                filtro,
+                pedido,
+                new ReplaceOptions
+                {
+                    IsUpsert = true
+                }
+            );
+        }
+
+        public async Task<bool> CambiarEstadoCocinaAsync(
+            string pedidoId,
+            string nuevoEstado)
+        {
             if (!ObjectId.TryParse(pedidoId, out _))
             {
                 return false;
             }
+
+            if (string.IsNullOrWhiteSpace(nuevoEstado))
+            {
+                return false;
+            }
+
             nuevoEstado = nuevoEstado.Trim();
 
-            if(nuevoEstado.Equals("Finalizado", StringComparison.OrdinalIgnoreCase))
+            var filtro = Builders<Pedidos>.Filter.Eq(
+                x => x.Id,
+                pedidoId
+            );
+
+            var actualizacion =
+                Builders<Pedidos>.Update.Set(
+                    x => x.Estado,
+                    nuevoEstado
+                );
+
+            var resultado =
+                await _pedidosCollection.UpdateOneAsync(
+                    filtro,
+                    actualizacion
+                );
+
+            return resultado.MatchedCount > 0;
+        }
+
+        public async Task<bool>
+            CambiarEstadoDeliveryAsync(
+                string pedidoId,
+                string nuevoEstado)
+        {
+            if (!ObjectId.TryParse(pedidoId, out _))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(nuevoEstado))
+            {
+                return false;
+            }
+
+            nuevoEstado = nuevoEstado.Trim();
+
+            if (nuevoEstado.Equals(
+                "Finalizado",
+                StringComparison.OrdinalIgnoreCase))
             {
                 nuevoEstado = "Finalizado";
             }
-            var filtro =
-                Builders<Pedidos>
-                .Filter
-                .And(
-                Builders<Pedidos>.Filter
-                .Eq(
-                    x => x.Id, pedidoId),
 
-                Builders<Pedidos>.Filter
-                .Eq(
-                    x => x.Estado, "Listo"),
+            var filtro = Builders<Pedidos>.Filter.And(
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.Id,
+                    pedidoId
+                ),
 
-                Builders<Pedidos>.Filter
-                .Eq(
-                    x => x.EstadoDelivery, "Pendiente")
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.Estado,
+                    "Listo"
+                ),
+
+                Builders<Pedidos>.Filter.Eq(
+                    x => x.EstadoDelivery,
+                    "Pendiente"
+                )
+            );
+
+            var actualizacion =
+                Builders<Pedidos>.Update
+                    .Set(
+                        x => x.EstadoDelivery,
+                        nuevoEstado
+                    );
+
+            if (nuevoEstado == "Finalizado")
+            {
+                actualizacion = actualizacion.Set(
+                    x => x.Finalizado,
+                    DateTime.UtcNow
+                );
+            }
+
+            var resultado =
+                await _pedidosCollection.UpdateOneAsync(
+                    filtro,
+                    actualizacion
                 );
 
-            var actualizacion = Builders<Pedidos>
-                .Update
-                .Set(x => x.EstadoDelivery, nuevoEstado);
-            if(nuevoEstado == "Finalizado")
-            {
-                actualizacion = actualizacion.Set(x => x.Finalizado, DateTime.UtcNow);
-            }
-
-            var resultado = await _pedidosCollection.UpdateOneAsync(filtro, actualizacion);
-
-            return resultado.ModifiedCount > 0;
+            return resultado.MatchedCount > 0;
         }
 
-        public async Task<ICollection<Pedidos>> GetPedidosAsync(int PageNumber, int PageSize)
+        public async Task<ICollection<Pedidos>>
+            GetPedidosAsync(
+                int pageNumber,
+                int pageSize)
         {
-            PageNumber = PageNumber <= 0 ? 1 : PageNumber;
-            PageSize = PageSize <= 0 ? 100 : PageSize;
+            pageNumber =
+                pageNumber <= 0 ? 1 : pageNumber;
 
-            var skip = (PageNumber - 1) * PageSize;
-            var filtro = Builders<Pedidos>.Filter.Empty;
+            pageSize =
+                pageSize <= 0
+                    ? 10
+                    : Math.Min(pageSize, 100);
 
-            var pedidos = await _pedidosCollection.Find(filtro)
+            var skip =
+                (pageNumber - 1) * pageSize;
+
+            return await _pedidosCollection
+                .Find(Builders<Pedidos>.Filter.Empty)
                 .SortByDescending(x => x.Creado)
                 .Skip(skip)
-                .Limit(PageSize)
+                .Limit(pageSize)
                 .ToListAsync();
-
-            return pedidos;
         }
 
-        public async Task<ICollection<Pedidos>> GetPedidosDeliveryAsync(int PageNumber, int PageSize)
+        public async Task<ICollection<Pedidos>>
+            GetPedidosDeliveryAsync(
+                int pageNumber,
+                int pageSize)
         {
-            PageNumber = PageNumber <= 0 ? 1 : PageNumber;
-            PageSize = PageSize <= 0 ? 100 : PageSize;
+            pageNumber =
+                pageNumber <= 0 ? 1 : pageNumber;
 
-            var skip = (PageNumber - 1) * PageSize;
-            var filtro = FiltroPedidosDelivery();
+            pageSize =
+                pageSize <= 0
+                    ? 10
+                    : Math.Min(pageSize, 100);
 
-            var pedidos = await _pedidosCollection.Find(filtro)
-                .SortByDescending(x => x.Creado)
+            var skip =
+                (pageNumber - 1) * pageSize;
+
+            return await _pedidosCollection
+                .Find(FiltroPedidosDelivery())
+                .SortBy(x => x.Creado)
                 .Skip(skip)
-                .Limit(PageSize)
+                .Limit(pageSize)
                 .ToListAsync();
-
-            return pedidos;
-
         }
 
-        public async Task<Pedidos?> GetPedidosPorIdAsync(string pedidoId)
+        public async Task<Pedidos?> GetPedidosPorIdAsync(
+            string pedidoId)
         {
-            if (string.IsNullOrWhiteSpace(pedidoId))
+            if (!ObjectId.TryParse(pedidoId, out _))
             {
                 return null;
             }
-            if(!ObjectId.TryParse(pedidoId , out _))
-            {
-                return null;
-            }
 
-            var filtro = Builders<Pedidos>
-                .Filter
-                .Eq(x => x.Id, pedidoId);
+            var filtro = Builders<Pedidos>.Filter.Eq(
+                x => x.Id,
+                pedidoId
+            );
 
-            return await _pedidosCollection.Find(filtro).FirstOrDefaultAsync();
+            return await _pedidosCollection
+                .Find(filtro)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<long> GetTotalPedidos()
         {
-            var total = Builders<Pedidos>.Filter.Empty;
-            return await _pedidosCollection.CountDocumentsAsync(total);
+            return await _pedidosCollection
+                .CountDocumentsAsync(
+                    Builders<Pedidos>.Filter.Empty
+                );
         }
 
-        public async Task<long> GetTotalPedidosDelivery()
+        public async Task<long>
+            GetTotalPedidosDelivery()
         {
-            var total = FiltroPedidosDelivery();
-            return await _pedidosCollection.CountDocumentsAsync(total);
+            return await _pedidosCollection
+                .CountDocumentsAsync(
+                    FiltroPedidosDelivery()
+                );
         }
 
-        public void GuardarPedido(Pedidos pedido)
+        public async Task<ICollection<Pedidos>> GetPedidosCocinaAsync(int pageNumber, int pageSize)
         {
-            if(pedido == null)
-            {
-                throw new ArgumentNullException(nameof(pedido));
-            
-            }
-            if (string.IsNullOrWhiteSpace(pedido.Id))
-            {
-                pedido.Id = ObjectId
-                    .GenerateNewId()
-                    .ToString();
-            }
-            pedido.Estado = "Pendiente";
-            pedido.EstadoDelivery = "Pendiente";
-            pedido.Creado = DateTime.UtcNow;
+            pageNumber =
+               pageNumber <= 0 ? 1 : pageNumber;
 
-            _pedidosCollection.InsertOne(pedido);
+            pageSize =
+                pageSize <= 0
+                    ? 10
+                    : Math.Min(pageSize, 100);
 
+            var skip =
+                (pageNumber - 1) * pageSize;
+
+            return await _pedidosCollection
+                .Find(FiltroPedidosPedidoCocina())
+                .SortBy(x => x.Creado)
+                .Skip(skip)
+                .Limit(pageSize)
+                .ToListAsync();
+        }
+
+        public async Task<long> GetTotalPedidosCocina()
+        {
+            return await _pedidosCollection.CountDocumentsAsync(FiltroPedidosPedidoCocina());
         }
     }
 }

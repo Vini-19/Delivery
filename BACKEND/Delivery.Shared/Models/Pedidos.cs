@@ -19,7 +19,7 @@ namespace Delivery.Shared.Models
         public decimal ISV { get; set; }
         public decimal Total { get; set; }
         public DateTime Creado { get; set; } = DateTime.UtcNow;
-        public DateTime Finalizado { get; set; }
+        public DateTime? Finalizado { get; set; }
         public List<DetallePedido> Detalles { get; set; } = new();
     }
 }

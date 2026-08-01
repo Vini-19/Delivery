@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Delivery.Infraestructura\Delivery.Infraestructura.csproj" />
+    <ProjectReference Include="..\Delivery.Shared\Delivery.Shared.csproj" />
   </ItemGroup>
 </Project>

@@ -8,6 +8,6 @@ namespace Delivery.Shared.Models
     {
         public string ProductoNombre { get; set; }
         public int Cantidad { get; set; }
-        public string Nota { get; set; }
+        public string? Nota { get; set; }
     }
 }

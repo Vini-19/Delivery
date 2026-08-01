@@ -1,0 +1,46 @@
+docker exec -it delivery-mongo mongosh -u admin -p Mongo123456 --authenticationDatabase admin
+2
+use delivery
+
+3
+
+db.getUsers()
+
+
+4
+
+db.createUser({
+    user: "delivery_app",
+    pwd: "DeliveryMongo123",
+    roles: [
+        {
+            role: "readWrite",
+            db: "delivery"
+        }
+    ],
+    mechanisms: [
+        "SCRAM-SHA-256"
+    ]
+})
+
+
+
+5
+
+
+
+db.updateUser(
+    "delivery_app",
+    {
+        pwd: "DeliveryMongo123",
+        roles: [
+            {
+                role: "readWrite",
+                db: "delivery"
+            }
+        ],
+        mechanisms: [
+            "SCRAM-SHA-256"
+        ]
+    }
+)

@@ -10,6 +10,6 @@ namespace Delivery.Infraestructura.Configuraciones
 
         public string DatabaseName { get; set; } = string.Empty;
 
-        public string ResultadosCollection { get; set; } = string.Empty;
+        public string PedidosCollection { get; set; } = string.Empty;
     }
 }
