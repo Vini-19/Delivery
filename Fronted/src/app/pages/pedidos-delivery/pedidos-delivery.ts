@@ -1,32 +1,18 @@
 import {
   ChangeDetectorRef,
   Component,
-  DestroyRef,
-  OnInit,
-  inject,
-  signal
+  OnDestroy,
+  OnInit
 } from '@angular/core';
 
 import {
-  DatePipe,
-  DecimalPipe
+  CommonModule
 } from '@angular/common';
 
 import {
-  EMPTY,
-  Subject,
-  catchError,
-  exhaustMap,
   finalize,
-  merge,
-  tap,
-  timeout,
-  timer
+  timeout
 } from 'rxjs';
-
-import {
-  takeUntilDestroyed
-} from '@angular/core/rxjs-interop';
 
 import {
   ToastrService
@@ -42,171 +28,120 @@ import {
 
 @Component({
   selector: 'app-pedidos-delivery',
+  standalone: true,
   imports: [
-    DatePipe,
-    DecimalPipe
+    CommonModule
   ],
   templateUrl: './pedidos-delivery.html',
   styleUrl: './pedidos-delivery.css'
 })
-export class PedidosDelivery implements OnInit {
-
-  private readonly destroyRef =
-    inject(DestroyRef);
-
-  private readonly cdr =
-    inject(ChangeDetectorRef);
-
-  private readonly actualizar$ =
-    new Subject<void>();
-
-  private readonly pedidosOcultos =
-    new Set<string>();
+export class PedidosDelivery implements OnInit, OnDestroy {
 
   pedidos: PedidoDTO[] = [];
 
   pageNumber = 1;
-  pageSize = 10;
+  pageSize = 100;
   totalPedidos = 0;
 
-  cargandoInicial = signal(true);
+  cargando = true;
+  consultando = false;
 
   pedidoFinalizandoId: string | null = null;
 
-  error = '';
+  private intervalo:
+    ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private pedidosService: ServicioDeliveryService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {
   }
 
   ngOnInit(): void {
-    this.iniciarActualizacionAutomatica();
+    this.cargarPedidosDelivery(true);
+
+    this.intervalo = setInterval(() => {
+      this.cargarPedidosDelivery(false);
+    }, 2000);
   }
 
-  private iniciarActualizacionAutomatica(): void {
+  ngOnDestroy(): void {
+    if (this.intervalo !== null) {
+      clearInterval(this.intervalo);
+    }
+  }
 
-    merge(
-      timer(0, 2000),
-      this.actualizar$
-    )
-      .pipe(
-        exhaustMap(() => {
+  cargarPedidosDelivery(
+    mostrarCarga: boolean = false
+  ): void {
 
-          if (this.pedidoFinalizandoId !== null) {
-            return EMPTY;
-          }
+    if (
+      this.consultando ||
+      this.pedidoFinalizandoId !== null
+    ) {
+      return;
+    }
 
-          return this.pedidosService
-            .ObtenerPedidosDelivery(
-              this.pageNumber,
-              this.pageSize
-            )
-            .pipe(
-              timeout(10000),
+    this.consultando = true;
 
-              tap((respuesta: any) => {
+    if (mostrarCarga) {
+      this.cargando = true;
+    }
 
-                const lista =
-                  respuesta.pedidos ??
-                  respuesta.Pedidos ??
-                  [];
-
-                const pedidos: PedidoDTO[] = lista;
-
-                for (
-                  const pedidoId
-                  of Array.from(this.pedidosOcultos)
-                ) {
-                  const existe =
-                    pedidos.some(
-                      (pedido: PedidoDTO) =>
-                        pedido.id === pedidoId
-                    );
-
-                  if (!existe) {
-                    this.pedidosOcultos.delete(
-                      pedidoId
-                    );
-                  }
-                }
-
-                this.pedidos =
-                  pedidos.filter(
-                    (pedido: PedidoDTO) =>
-                      !this.pedidosOcultos.has(
-                        pedido.id
-                      ) &&
-                      pedido.estadoDelivery
-                        .toLowerCase() !==
-                      'finalizado'
-                  );
-
-                const total =
-                  respuesta.totalPedidos ??
-                  respuesta.TotalPedidos ??
-                  this.pedidos.length;
-
-                this.totalPedidos =
-                  Math.max(
-                    this.pedidos.length,
-                    total -
-                    this.pedidosOcultos.size
-                  );
-
-                this.error = '';
-
-                this.cdr.markForCheck();
-              }),
-
-              catchError((error) => {
-
-                this.error =
-                  error.name === 'TimeoutError'
-                    ? 'La API tardó demasiado en responder.'
-                    : error.error?.mensaje ??
-                    'No se pudieron cargar los pedidos.';
-
-                this.cdr.markForCheck();
-
-                return EMPTY;
-              }),
-
-              finalize(() => {
-                this.cargandoInicial.set(false);
-                this.cdr.markForCheck();
-              })
-            );
-        }),
-
-        takeUntilDestroyed(
-          this.destroyRef
-        )
+    this.pedidosService
+      .ObtenerPedidosDelivery(
+        this.pageNumber,
+        this.pageSize
       )
-      .subscribe();
-  }
+      .pipe(
+        timeout(10000),
 
+        finalize(() => {
+          this.consultando = false;
+          this.cargando = false;
+          this.cdr.detectChanges();
+        })
+      )
+      .subscribe({
+        next: (respuesta) => {
+          this.pedidos =
+            respuesta.pedidos ?? [];
 
-  cargarPedidosDelivery(): void {
-    this.actualizar$.next();
+          this.totalPedidos =
+            respuesta.totalPedidos ?? 0;
+
+          this.cdr.detectChanges();
+        },
+
+        error: (error) => {
+          console.error(
+            'Error cargando pedidos:',
+            error
+          );
+
+          if (mostrarCarga) {
+            this.toastr.error(
+              'No se pudieron cargar los pedidos',
+              'Error'
+            );
+          }
+        }
+      });
   }
 
   finalizarDelivery(
     pedidoId: string
   ): void {
 
-    if (
-      !pedidoId ||
-      this.pedidoFinalizandoId !== null
-    ) {
+    if (this.pedidoFinalizandoId !== null) {
       return;
     }
 
     this.pedidoFinalizandoId =
       pedidoId;
 
-    this.cdr.markForCheck();
+    this.cdr.detectChanges();
 
     this.pedidosService
       .FinalizarDelivery(pedidoId)
@@ -217,17 +152,12 @@ export class PedidosDelivery implements OnInit {
           this.pedidoFinalizandoId =
             null;
 
-          this.cdr.markForCheck();
-          this.actualizar$.next();
+          this.cdr.detectChanges();
+          this.cargarPedidosDelivery(false);
         })
       )
       .subscribe({
         next: () => {
-
-          this.pedidosOcultos.add(
-            pedidoId
-          );
-
           this.pedidos =
             this.pedidos.filter(
               pedido =>
@@ -248,72 +178,60 @@ export class PedidosDelivery implements OnInit {
           }
 
           this.toastr.success(
-            'El pedido fue entregado correctamente.',
-            'Pedido finalizado'
+            'Pedido entregado correctamente',
+            'Delivery'
           );
 
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
         },
 
         error: (error) => {
-
-          const mensaje =
-            error.name === 'TimeoutError'
-              ? 'La API tardó demasiado en responder.'
-              : error.error?.mensaje ??
-              'No se pudo finalizar el pedido.';
-
           this.toastr.error(
-            mensaje,
+            error.error?.mensaje ??
+            'No se pudo finalizar el pedido',
             'Error'
           );
-
-          this.cdr.markForCheck();
         }
       });
   }
 
   paginaAnterior(): void {
 
-    if (this.pageNumber <= 1) {
+    if (
+      this.pageNumber <= 1 ||
+      this.consultando
+    ) {
       return;
     }
 
     this.pageNumber--;
-    this.actualizar$.next();
+    this.cargarPedidosDelivery(true);
   }
 
   paginaSiguiente(): void {
 
     if (
       this.pageNumber >=
-      this.totalPaginas
+        this.totalPaginas ||
+      this.consultando
     ) {
       return;
     }
 
     this.pageNumber++;
-    this.actualizar$.next();
+    this.cargarPedidosDelivery(true);
   }
 
   cambiarPageSize(
-    nuevoPageSize: string
+    pageSize: string
   ): void {
 
-    const valor =
-      Number(nuevoPageSize);
+    this.pageSize =
+      Number(pageSize);
 
-    if (
-      valor <= 0 ||
-      valor === this.pageSize
-    ) {
-      return;
-    }
-
-    this.pageSize = valor;
     this.pageNumber = 1;
 
-    this.actualizar$.next();
+    this.cargarPedidosDelivery(true);
   }
 
   get totalPaginas(): number {

@@ -1,1 +1,543 @@
-<p>registro-pedidos works!</p>
+<div class="container py-4">
+
+  <div class="registro-header mb-4">
+
+    <div>
+      <h2 class="fw-bold mb-1">
+        Registro de pedidos
+      </h2>
+
+      <p class="text-muted mb-0">
+        Consulta los pedidos y revisa sus productos.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="btn btn-primary"
+      (click)="cargarPedidos()"
+      [disabled]="cargando">
+
+      <span
+        *ngIf="cargando"
+        class="spinner-border spinner-border-sm me-2">
+      </span>
+
+      Actualizar
+
+    </button>
+
+  </div>
+
+  <div class="card registro-card">
+
+    <div class="card-header registro-toolbar">
+
+      <div>
+        <strong>
+          Pedidos registrados
+        </strong>
+
+        <span class="text-muted ms-2">
+          {{ totalPedidos }}
+          {{ totalPedidos === 1 ? 'registro' : 'registros' }}
+        </span>
+      </div>
+
+      <div class="page-size">
+
+        <span>Mostrar</span>
+
+        <select
+          class="form-select form-select-sm"
+          [(ngModel)]="pageSize"
+          (change)="cambiarPageSize()"
+          [disabled]="cargando">
+
+          <option [ngValue]="5">
+            5
+          </option>
+
+          <option [ngValue]="10">
+            10
+          </option>
+
+          <option [ngValue]="20">
+            20
+          </option>
+
+          <option [ngValue]="50">
+            50
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+    <div class="table-responsive">
+
+      <table class="table align-middle mb-0">
+
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Lugar de envío</th>
+            <th>Fecha</th>
+            <th>Cocina</th>
+            <th>Delivery</th>
+            <th>Total</th>
+            <th class="text-end">
+              Acción
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          <tr
+            *ngFor="let pedido of pedidos">
+
+            <td>
+              <strong>
+                {{ pedido.cliente }}
+              </strong>
+
+              <small class="pedido-id">
+                {{ pedido.id }}
+              </small>
+            </td>
+
+            <td>
+              {{ pedido.lugar_envio }}
+            </td>
+
+            <td>
+              {{
+                pedido.creado
+                  | date:'dd/MM/yyyy hh:mm a'
+              }}
+            </td>
+
+            <td>
+              <span
+                class="badge"
+                [ngClass]="
+                  claseEstado(pedido.estado)
+                ">
+
+                {{ pedido.estado }}
+
+              </span>
+            </td>
+
+            <td>
+              <span
+                class="badge"
+                [ngClass]="
+                  claseEstado(
+                    pedido.estadoDelivery
+                  )
+                ">
+
+                {{ pedido.estadoDelivery }}
+
+              </span>
+            </td>
+
+            <td>
+              <strong class="text-success">
+                L
+                {{
+                  pedido.total
+                    | number:'1.2-2'
+                }}
+              </strong>
+            </td>
+
+            <td class="text-end">
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                (click)="verDetalle(pedido.id)"
+                [disabled]="cargandoDetalle">
+
+                Ver detalle
+
+              </button>
+
+            </td>
+
+          </tr>
+
+          <tr
+            *ngIf="
+              cargando &&
+              pedidos.length === 0
+            ">
+
+            <td
+              colspan="7"
+              class="text-center py-5">
+
+              <div
+                class="spinner-border text-primary">
+              </div>
+
+              <p class="text-muted mt-2 mb-0">
+                Cargando pedidos...
+              </p>
+
+            </td>
+
+          </tr>
+
+          <tr
+            *ngIf="
+              !cargando &&
+              pedidos.length === 0
+            ">
+
+            <td
+              colspan="7"
+              class="text-center py-5">
+
+              <h5>
+                No hay pedidos registrados
+              </h5>
+
+              <p class="text-muted mb-0">
+                Los pedidos aparecerán cuando
+                sean registrados.
+              </p>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <div
+      class="card-footer registro-pagination"
+      *ngIf="totalPedidos > 0">
+
+      <span class="text-muted">
+        Página
+        <strong>{{ pageNumber }}</strong>
+        de
+        <strong>{{ totalPaginas }}</strong>
+      </span>
+
+      <div class="pagination-buttons">
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          (click)="paginaAnterior()"
+          [disabled]="
+            pageNumber <= 1 ||
+            cargando
+          ">
+
+          Anterior
+
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-sm"
+          *ngFor="let pagina of paginas"
+          [class.btn-primary]="
+            pagina === pageNumber
+          "
+          [class.btn-outline-secondary]="
+            pagina !== pageNumber
+          "
+          (click)="irAPagina(pagina)"
+          [disabled]="cargando">
+
+          {{ pagina }}
+
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          (click)="paginaSiguiente()"
+          [disabled]="
+            pageNumber >= totalPaginas ||
+            cargando
+          ">
+
+          Siguiente
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div
+  class="modal fade show d-block"
+  tabindex="-1"
+  *ngIf="pedidoSeleccionado as pedido">
+
+  <div
+    class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <div>
+          <h5 class="modal-title">
+            Detalle del pedido
+          </h5>
+
+          <small class="text-muted">
+            {{ pedido.id }}
+          </small>
+        </div>
+
+        <button
+          type="button"
+          class="btn-close"
+          (click)="cerrarDetalle()">
+        </button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <div class="row g-3 mb-4">
+
+          <div class="col-md-6">
+
+            <div class="detalle-dato">
+              <span>Cliente</span>
+
+              <strong>
+                {{ pedido.cliente }}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="col-md-6">
+
+            <div class="detalle-dato">
+              <span>Lugar de envío</span>
+
+              <strong>
+                {{ pedido.lugar_envio }}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="col-md-6">
+
+            <div class="detalle-dato">
+              <span>Fecha</span>
+
+              <strong>
+                {{
+                  pedido.creado
+                    | date:'dd/MM/yyyy hh:mm a'
+                }}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="col-md-6">
+
+            <div class="detalle-dato">
+              <span>Finalizado</span>
+
+              <strong>
+                {{
+                  pedido.finalizado
+                    ? (
+                      pedido.finalizado
+                        | date:'dd/MM/yyyy hh:mm a'
+                    )
+                    : 'No finalizado'
+                }}
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="estados-detalle mb-4">
+
+          <div>
+            Cocina:
+
+            <span
+              class="badge ms-2"
+              [ngClass]="
+                claseEstado(pedido.estado)
+              ">
+
+              {{ pedido.estado }}
+
+            </span>
+          </div>
+
+          <div>
+            Delivery:
+
+            <span
+              class="badge ms-2"
+              [ngClass]="
+                claseEstado(
+                  pedido.estadoDelivery
+                )
+              ">
+
+              {{ pedido.estadoDelivery }}
+
+            </span>
+          </div>
+
+        </div>
+
+        <h6 class="fw-bold mb-3">
+          Productos
+        </h6>
+
+        <div class="table-responsive">
+
+          <table class="table detalle-table">
+
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="text-center">
+                  Cantidad
+                </th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              <tr
+                *ngFor="
+                  let detalle of pedido.detalles
+                ">
+
+                <td>
+                  {{ detalle.productoNombre }}
+                </td>
+
+                <td class="text-center">
+                  {{ detalle.cantidad }}
+                </td>
+
+                <td>
+                  {{ detalle.nota || 'Sin nota' }}
+                </td>
+
+              </tr>
+
+              <tr
+                *ngIf="
+                  !pedido.detalles ||
+                  pedido.detalles.length === 0
+                ">
+
+                <td
+                  colspan="3"
+                  class="text-center text-muted">
+
+                  No hay productos registrados.
+
+                </td>
+
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+        <div class="resumen-pedido">
+
+          <div>
+            <span>Subtotal</span>
+
+            <strong>
+              L
+              {{
+                pedido.subTotal
+                  | number:'1.2-2'
+              }}
+            </strong>
+          </div>
+
+          <div>
+            <span>ISV</span>
+
+            <strong>
+              L
+              {{
+                pedido.isv
+                  | number:'1.2-2'
+              }}
+            </strong>
+          </div>
+
+          <div class="resumen-total">
+            <span>Total</span>
+
+            <strong>
+              L
+              {{
+                pedido.total
+                  | number:'1.2-2'
+              }}
+            </strong>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="cerrarDetalle()">
+
+          Cerrar
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div
+  class="modal-backdrop fade show"
+  *ngIf="pedidoSeleccionado">
+</div>

@@ -1,1 +1,336 @@
-<p>crear-orden works!</p>
+<div class="container py-4">
+
+  <div class="orden-container">
+
+    <div class="mb-4">
+      <h2 class="fw-bold mb-1">
+        Crear orden
+      </h2>
+
+      <p class="text-muted mb-0">
+        Registra los datos del cliente y selecciona los productos.
+      </p>
+    </div>
+
+    <form [formGroup]="formulario">
+
+      <div class="card orden-card mb-4">
+
+        <div class="card-header">
+          Información del cliente
+        </div>
+
+        <div class="card-body">
+
+          <div class="row g-3">
+
+            <div class="col-md-6">
+
+              <label class="form-label">
+                Nombre del cliente
+              </label>
+
+              <input
+                type="text"
+                class="form-control"
+                formControlName="cliente"
+                placeholder="Ingrese el nombre"
+                [class.is-invalid]="
+                  formulario.get('cliente')?.touched &&
+                  formulario.get('cliente')?.invalid
+                ">
+
+              <div class="invalid-feedback">
+                El nombre del cliente es obligatorio.
+              </div>
+
+            </div>
+
+            <div class="col-md-6">
+
+              <label class="form-label">
+                Lugar de envío
+              </label>
+
+              <input
+                type="text"
+                class="form-control"
+                formControlName="lugar_envio"
+                placeholder="Ingrese la dirección"
+                [class.is-invalid]="
+                  formulario.get('lugar_envio')?.touched &&
+                  formulario.get('lugar_envio')?.invalid
+                ">
+
+              <div class="invalid-feedback">
+                El lugar de envío es obligatorio.
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="card orden-card mb-4">
+
+        <div
+          class="card-header d-flex justify-content-between align-items-center">
+
+          <span>
+            Productos de la orden
+          </span>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            (click)="agregarDetalle()">
+
+            Agregar producto
+
+          </button>
+
+        </div>
+
+        <div
+          class="card-body"
+          formArrayName="detalles">
+
+          <div
+            class="producto-item"
+            *ngFor="
+              let detalle of detalles.controls;
+              let i = index
+            "
+            [formGroupName]="i">
+
+            <div
+              class="d-flex justify-content-between align-items-center mb-3">
+
+              <strong>
+                Producto {{ i + 1 }}
+              </strong>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                (click)="eliminarDetalle(i)">
+
+                Eliminar
+
+              </button>
+
+            </div>
+
+            <div class="row g-3 align-items-start">
+
+              <div class="col-md-4">
+
+                <label class="form-label">
+                  Producto
+                </label>
+
+                <select
+                  class="form-select"
+                  formControlName="productoId"
+                  (change)="seleccionarProducto(i)"
+                  [class.is-invalid]="
+                    detalle.get('productoId')?.touched &&
+                    detalle.get('productoId')?.invalid
+                  ">
+
+                  <option value="">
+                    Seleccione un producto
+                  </option>
+
+                  <option
+                    *ngFor="let producto of productos"
+                    [value]="producto.id">
+
+                    {{ producto.nombre }}
+                    - L {{ producto.precio | number:'1.2-2' }}
+
+                  </option>
+
+                </select>
+
+                <div class="invalid-feedback">
+                  Seleccione un producto.
+                </div>
+
+              </div>
+
+              <div class="col-md-2">
+
+                <label class="form-label">
+                  Precio
+                </label>
+
+                <div class="input-group">
+
+                  <span class="input-group-text">
+                    L
+                  </span>
+
+                  <input
+                    type="number"
+                    class="form-control"
+                    formControlName="precio"
+                    readonly>
+
+                </div>
+
+              </div>
+
+              <div class="col-md-2">
+
+                <label class="form-label">
+                  Cantidad
+                </label>
+
+                <input
+                  type="number"
+                  class="form-control"
+                  formControlName="cantidad"
+                  min="1"
+                  [class.is-invalid]="
+                    detalle.get('cantidad')?.touched &&
+                    detalle.get('cantidad')?.invalid
+                  ">
+
+                <div class="invalid-feedback">
+                  La cantidad debe ser mayor que cero.
+                </div>
+
+              </div>
+
+              <div class="col-md-4">
+
+                <label class="form-label">
+                  Nota
+                </label>
+
+                <input
+                  type="text"
+                  class="form-control"
+                  formControlName="nota"
+                  placeholder="Ejemplo: sin cebolla">
+
+              </div>
+
+            </div>
+
+            <div class="text-end mt-3">
+
+              <span class="text-muted me-2">
+                Total del producto:
+              </span>
+
+              <strong class="text-success">
+                L
+                {{
+                  (
+                    (detalle.get('precio')?.value || 0) *
+                    (detalle.get('cantidad')?.value || 0)
+                  )
+                  | number:'1.2-2'
+                }}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="card orden-card mb-4">
+
+        <div class="card-header">
+          Resumen de la orden
+        </div>
+
+        <div class="card-body">
+
+          <div class="fila-total">
+
+            <span>
+              Subtotal
+            </span>
+
+            <strong>
+              L {{ subTotal | number:'1.2-2' }}
+            </strong>
+
+          </div>
+
+          <div class="fila-total">
+
+            <span>
+              ISV 15%
+            </span>
+
+            <strong>
+              L {{ isv | number:'1.2-2' }}
+            </strong>
+
+          </div>
+
+          <div class="fila-total total-final">
+
+            <span>
+              Total
+            </span>
+
+            <strong>
+              L {{ total | number:'1.2-2' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          (click)="limpiarFormulario()"
+          [disabled]="guardando">
+
+          Limpiar
+
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="guardarOrden()"
+          [disabled]="guardando">
+
+          <span
+            *ngIf="guardando"
+            class="spinner-border spinner-border-sm me-2"
+            role="status">
+          </span>
+
+          {{
+            guardando
+              ? 'Guardando...'
+              : 'Registrar orden'
+          }}
+
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>

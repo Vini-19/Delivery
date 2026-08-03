@@ -1,12 +1,10 @@
-import { DetallesPedido } from "./DetallesPedido";
+import { DetallesPedido } from './DetallesPedido';
 
-
-export interface CrearPedidoDTO
-{
-    cliente : string;
-    LugarEnvio : string;
-    SubTotal : number;
-    ISV : number;
-    Total : number;
-    detalle : DetallesPedido[];
+export interface CrearPedidoDTO {
+  cliente: string;
+  lugar_envio: string;
+  subTotal: number;
+  isv: number;
+  total: number;
+  detalles: DetallesPedido[];
 }
