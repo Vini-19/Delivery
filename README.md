@@ -58,6 +58,11 @@ aiohttp
 
 Arquitectura general
 
+## Documentación
+
+- [Bitácora de decisiones técnicas](docs/capas.md)
+- [Diagrama de arquitectura](docs/Arquitectura-Sistema.md)
+
 flowchart LR
     A[Angular] -->|POST pedido| B[Delivery API]
     B -->|Publica mensaje| C[Kafka]
