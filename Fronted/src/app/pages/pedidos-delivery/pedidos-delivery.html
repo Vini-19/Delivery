@@ -1,0 +1,348 @@
+<div class="container py-4">
+
+  <div class="encabezado-delivery mb-4">
+
+    <div>
+      <h2 class="titulo-pagina mb-1">
+        Pedidos para Delivery
+      </h2>
+
+      <p class="text-muted mb-0">
+        Pedidos disponibles:
+        <strong>{{ totalPedidos }}</strong>
+      </p>
+    </div>
+
+    <div class="acciones-encabezado">
+
+      <select class="form-select selector-pagina" [value]="pageSize" (change)="
+          cambiarPageSize(
+            $any($event.target).value
+          )
+        ">
+        <option value="5">
+          5 por página
+        </option>
+
+        <option value="10">
+          10 por página
+        </option>
+
+        <option value="20">
+          20 por página
+        </option>
+
+        <option value="50">
+          50 por página
+        </option>
+      </select>
+
+      <button type="button" class="btn btn-primary" (click)="cargarPedidosDelivery()">
+        Actualizar
+      </button>
+
+    </div>
+
+  </div>
+
+  @if (error) {
+  <div class="alert alert-danger" role="alert">
+    {{ error }}
+  </div>
+  }
+
+
+  @if (
+  cargandoInicial() &&
+  pedidos.length === 0
+  ) {
+  <div class="estado-vacio">
+
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">
+        Cargando...
+      </span>
+    </div>
+
+    <p class="text-muted mt-3 mb-0">
+      Cargando pedidos disponibles...
+    </p>
+
+  </div>
+  }
+
+  <!-- Aparece cuando terminó la primera carga -->
+  @if (
+  !cargandoInicial() &&
+  pedidos.length === 0 &&
+  !error
+  ) {
+  <div class="estado-vacio">
+
+    <h4 class="mb-2">
+      No hay pedidos disponibles
+    </h4>
+
+    <p class="text-muted mb-0">
+      Los pedidos aparecerán cuando cocina
+      los marque como listos.
+    </p>
+
+  </div>
+  }
+
+  @if (pedidos.length > 0) {
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+
+    @for (
+    pedido of pedidos;
+    track pedido.id
+    ) {
+
+    <div class="col">
+
+      <div class="card pedido-card h-100">
+
+        <div class="card-header pedido-header">
+
+          <div class="overflow-hidden">
+
+            <span class="pedido-label">
+              PEDIDO
+            </span>
+
+            <small class="pedido-id">
+              {{ pedido.id }}
+            </small>
+
+          </div>
+
+          <span class="badge text-bg-warning">
+            {{
+            pedido.estadoDelivery ||
+            'Pendiente'
+            }}
+          </span>
+
+        </div>
+
+        <div class="card-body d-flex flex-column">
+
+          <h5 class="nombre-cliente">
+            {{ pedido.cliente }}
+          </h5>
+
+          <div class="dato-pedido">
+
+            <span class="dato-titulo">
+              Lugar de entrega
+            </span>
+
+            <p class="mb-0">
+              {{ pedido.lugar_envio }}
+            </p>
+
+          </div>
+
+          <div class="dato-pedido">
+
+            <span class="dato-titulo">
+              Fecha del pedido
+            </span>
+
+            <p class="mb-0">
+              {{
+              pedido.creado
+              | date:'dd/MM/yyyy hh:mm a'
+              }}
+            </p>
+
+          </div>
+
+          <div class="estados-container">
+
+            <div>
+
+              <span class="dato-titulo">
+                Cocina
+              </span>
+
+              <span class="badge ms-2" [class.text-bg-secondary]="
+                      pedido.estado === 'Pendiente'
+                    " [class.text-bg-primary]="
+                      pedido.estado === 'Preparando'
+                    " [class.text-bg-success]="
+                      pedido.estado === 'Listo'
+                    ">
+                {{ pedido.estado }}
+              </span>
+
+            </div>
+
+            <div>
+
+              <span class="dato-titulo">
+                Delivery
+              </span>
+
+              <span class="badge text-bg-warning ms-2">
+                {{ pedido.estadoDelivery }}
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="productos-container">
+
+            <h6 class="productos-titulo">
+              Productos
+            </h6>
+
+            @if (
+            pedido.detalles &&
+            pedido.detalles.length > 0
+            ) {
+
+            <ul class="list-group list-group-flush">
+
+              @for (
+              detalle of pedido.detalles;
+              track $index
+              ) {
+
+              <li class="list-group-item producto-item">
+
+                <div class="producto-principal">
+
+                  <span class="producto-nombre">
+                    {{ detalle.productoNombre }}
+                  </span>
+
+                  <span class="badge text-bg-dark">
+                    x{{ detalle.cantidad }}
+                  </span>
+
+                </div>
+
+                @if (detalle.nota) {
+                <small class="producto-nota">
+                  Nota: {{ detalle.nota }}
+                </small>
+                }
+
+              </li>
+
+              }
+
+            </ul>
+
+            } @else {
+
+            <p class="text-muted mb-0">
+              No hay productos registrados.
+            </p>
+
+            }
+
+          </div>
+
+          <div class="totales-container mt-auto">
+
+            <div class="fila-total">
+
+              <span>Subtotal</span>
+
+              <strong>
+                L
+                {{
+                pedido.subTotal
+                | number:'1.2-2'
+                }}
+              </strong>
+
+            </div>
+
+            <div class="fila-total">
+
+              <span>ISV</span>
+
+              <strong>
+                L
+                {{
+                pedido.isv
+                | number:'1.2-2'
+                }}
+              </strong>
+
+            </div>
+
+            <div class="fila-total total-final">
+
+              <span>Total</span>
+
+              <strong>
+                L
+                {{
+                pedido.total
+                | number:'1.2-2'
+                }}
+              </strong>
+
+            </div>
+
+          </div>
+
+          <button type="button" class="btn btn-success w-100 mt-3" (click)="finalizarDelivery(pedido.id)" [disabled]="
+                  pedidoFinalizandoId === pedido.id
+                ">
+
+            @if (
+            pedidoFinalizandoId === pedido.id
+            ) {
+
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+
+            Finalizando...
+
+            } @else {
+
+            Marcar como entregado
+
+            }
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    }
+
+  </div>
+
+  <div class="paginacion-container">
+
+    <button type="button" class="btn btn-outline-primary" (click)="paginaAnterior()" [disabled]="pageNumber <= 1">
+      Anterior
+    </button>
+
+    <span class="pagina-actual">
+      Página {{ pageNumber }}
+      de {{ totalPaginas }}
+    </span>
+
+    <button type="button" class="btn btn-outline-primary" (click)="paginaSiguiente()" [disabled]="
+          pageNumber >= totalPaginas
+        ">
+      Siguiente
+    </button>
+
+  </div>
+
+  }
+
+</div>
